@@ -1,0 +1,101 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+
+import os
+import json
+import time
+import tracemalloc
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
+from GetJAO import getJao
+from GetSEECAO import getSEECAO
+from supaConnect import uploadToSupa, checkRemoteFileDate
+
+
+tracemalloc.start()
+start = time.perf_counter()
+
+print("Aggregator running...")
+collectionWasAccessedB4Today = False
+auctionsFileName = "auctions.json"
+try:
+    lastModifiedDate_local = checkRemoteFileDate()
+    
+    distanceFromAccessTime = datetime.timestamp(datetime.today()) - datetime.timestamp(lastModifiedDate_local)
+    
+    collectionWasAccessedB4Today = int(distanceFromAccessTime) >= 86400 #if 24 hrs (in seconds) or more have passed
+    
+    print(f"Was collection accessed before today? {collectionWasAccessedB4Today}")
+    print(f"Last Access Date (Tirana TZ): {lastModifiedDate_local}")
+    print(f"Time elapsed (s): ~{int(distanceFromAccessTime / 3600)}hrs")
+    
+    CONTINUE_AGGREGATION = collectionWasAccessedB4Today
+        
+except FileNotFoundError:
+    print("An auction collection file is not present.")    
+    CONTINUE_AGGREGATION = True 
+
+if CONTINUE_AGGREGATION:
+    print("Continuing with aggregation...")
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    
+    # Start date and end date
+    start_date = datetime(2019, 12, 1, 23, 0, 0)  # December 1, 2019, 23:00:00
+    end_date = datetime(2025, 1, 1, 23, 59, 59)  # January 1, 2025, 23:59:59
+
+    all_data = []
+    listLock = threading.Lock()
+            
+    def getDataFrom(source, start_date, end_date, horizon):
+        if source == "JAO":
+            collector = getJao
+        else:
+            collector = getSEECAO
+            
+        data = collector(start_date, end_date, horizon)
+        with listLock:
+            all_data.append(data)
+        
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Caution: setting the horizon to Yearly will collect auctions based ONLY on the dates' years (JAO)
+        executor.submit(getDataFrom, "JAO", start_date, end_date, "Monthly")
+        executor.submit(getDataFrom, "JAO", start_date, end_date, "Yearly")
+        executor.submit(getDataFrom, "SEECAO", start_date, end_date, "Monthly")
+        executor.submit(getDataFrom, "SEECAO", start_date, end_date, "Yearly")
+
+    if not all_data:
+        print("\nNo Data collected.")
+        
+    else:
+        with open(auctionsFileName, 'w') as file:
+                file.write(json.dumps(all_data))
+        print(f"Data successfully exported to {auctionsFileName}")
+        uploadToSupa() 
+
+
+
+end = time.perf_counter()
+curr, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+    
+def convert_size(size_bytes):
+    # Handle the case for 0 bytes
+    if size_bytes == 0:
+        return "0B"
+    
+    # Define the units
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB")
+    i = int((size_bytes).bit_length() - 1) // 10  # Find which unit to use
+    p = 1024 ** i
+    s = size_bytes / p
+    return f"{s:.2f} {size_name[i]}"
+
+converted_size = convert_size(peak)
+
+print(f"\nFinished in {end-start:.2f}sec.")
+print(f"Peak memory usage: {converted_size}.")
