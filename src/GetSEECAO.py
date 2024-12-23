@@ -11,7 +11,8 @@ import asyncio
 import aiohttp
 from aiohttp import ClientSession, ServerDisconnectedError
 
-from threading import Lock
+from logging_config import setup_logging
+logger = setup_logging()
 
 retries = 3
 delay = 1
@@ -24,7 +25,7 @@ def getSEECAO(start_date, end_date, horizon):
             parsed_area_data = json.loads(area_data)
             
         except Exception as e:
-            print(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.error(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
             
         if requestFailed:   
@@ -34,7 +35,7 @@ def getSEECAO(start_date, end_date, horizon):
         # If all retries fail, raise an exception
         raise Exception(f"Failed to fetch SEECAO's border IDs after {retries} attempts.")
     
-    print(f"Collected area code pairs from SEECAO. Horizon {horizon}.")
+    logger.info(f"Collected area code pairs from SEECAO. Horizon {horizon}.")
         
     # key value pairs stored in dicts using labels (border names) as keys
     border_id_by_label = {border["label"]: border["value"] for border in parsed_area_data["borders"]}
@@ -54,7 +55,7 @@ def getSEECAO(start_date, end_date, horizon):
         try:
             auctionData = getAuctions(fromDate, toDate, id_list, horizon.lower())
         except:
-            print("Could not get auction data from SEECAO")
+            logger.error("Could not get auction data from SEECAO")
     
         if requestFailed:
             sleep(delay)
@@ -63,7 +64,7 @@ def getSEECAO(start_date, end_date, horizon):
         # If all retries fail, raise an exception
         raise Exception(f"Failed to fetch SEECAO's auction data after {retries} attempts.")
     
-    print(f"Collected auction data from SEECAO. Horizon {horizon}.")
+    logger.info(f"Collected auction data from SEECAO. Horizon {horizon}.")
 
     try: #type list
         auctions = json.loads(auctionData).get("auctions")
@@ -122,7 +123,7 @@ async def processAuctions(auctionsList, horizon):
                     if not auction.get("cancelled"):
                         auctionsList.insert(index, processedAuction)
                     else:
-                        print(f"Removed cancelled auction {currAuctionID}")
+                        logger.info(f"Removed cancelled auction {currAuctionID}")
                         
 
 async def getAuctionSpecs(auctionID, session):
@@ -149,22 +150,22 @@ async def getAuctionSpecs(auctionID, session):
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"Collected specifications for {auctionID}.")
+                    logger.info(f"Collected specifications for {auctionID}.")
                     return data
                 else:
-                    print(f"Failed data retrieval for {auctionID}. Status code: {response.status}\nServer response:", end = " ")
+                    logger.info(f"Failed data retrieval for {auctionID}. Status code: {response.status}\nServer response:")
                     response_text = await response.text()
-                    print(response_text)
+                    logger.info(response_text)
                 
                 
         except ServerDisconnectedError:
-            print(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except aiohttp.ClientError as e:
-            print(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except Exception as e:
-            print(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
 
         if requestFailed:   
@@ -191,10 +192,10 @@ if __name__ == "__main__":
         seecaoTestFileName = "seecao_test.json"
         with open(seecaoTestFileName, 'w') as file:
                 file.write(json.dumps(all_data))
-        print(f"Data successfully exported to {seecaoTestFileName}")
+        logger.info(f"Data successfully exported to {seecaoTestFileName}")
 
     else:
-        print("\nNo Data collected.")
+        logger.info("\nNo Data collected.")
 
 
     end = time.perf_counter()
@@ -215,6 +216,6 @@ if __name__ == "__main__":
 
     converted_size = convert_size(peak)
 
-    print(f"Finished in {end-start:.2f}sec.")
-    print(f"Peak memory usage: {converted_size}.")
+    logger.info(f"Finished in {end-start:.2f}sec.")
+    logger.info(f"Peak memory usage: {converted_size}.")
     

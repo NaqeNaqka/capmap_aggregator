@@ -7,6 +7,9 @@ import time
 from datetime import datetime, timedelta
 import tracemalloc
 
+from logging_config import setup_logging
+logger = setup_logging()
+
 unwantedBorders = []
 corridors = []
 all_data = []
@@ -47,26 +50,26 @@ async def getCorridors(session, horizon, retries = 3, delay = 1):
                         if border not in unwantedBorders and border not in corridors:
                             corridors.append(border)
                          
-                    print(f"Collected corridor pairs from JAO. Horizon {horizon}.")
+                    logger.info(f"Collected corridor pairs from JAO. Horizon {horizon}.")
                     return
                 else:
-                    print(f"Failed pairs retrieval for horizon {horizon}. Status code: {response.status}.\nReason:", end = " ")
+                    logger.info(f"Failed pairs retrieval for horizon {horizon}. Status code: {response.status}.\nReason:")
                     if (response.status == 405 or response.status == 400):
                         response_text = await response.text()
-                        print("Unhandled Bad Request: ", response_text)
+                        logger.info("Unhandled Bad Request: ", response_text)
                         requestFailed = True           
         
         except ServerDisconnectedError:
-            print(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except aiohttp.ClientError as e:
-            print(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except Exception as e:
-            print(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except InterruptedError as e:
-            print("Interrupt instruction received")
+            logger.info("Interrupt instruction received")
             break
             
         if requestFailed:   
@@ -95,28 +98,28 @@ async def fetch_auction(session, corridor, date_range, horizon, retries = 3, del
             async with session.post(url, headers=headers, data=payload) as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"Collected {horizon} auction for {corridor} from {date_range['fromdate']} to {date_range['todate']}.")
+                    logger.info(f"Collected {horizon} auction for {corridor} from {date_range['fromdate']} to {date_range['todate']}.")
                     return data
                 else:
-                    print(f"Failed data retrieval for {corridor} from {date_range['fromdate']} to {date_range['todate']}. Status code: {response.status}.\nReason:", end = " ")
+                    logger.info(f"Failed data retrieval for {corridor} from {date_range['fromdate']} to {date_range['todate']}. Status code: {response.status}.\nReason:")
                     if (response.status == 405 or response.status == 400):
                         response_text = await response.text()
                         
                         # Look for the keyword "\u0022No Data found\u0022" in the response text
                         if '\\u0022No Data found\\u0022' in response_text:
-                            print("No Data found.")
+                            logger.info("No Data found.")
                         else:
-                            print("Unhandled Bad Request: ", response_text)
+                            logger.warn("Unhandled Bad Request: ", response_text)
                             
                     return None
         except ServerDisconnectedError:
-            print(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Server disconnected. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except aiohttp.ClientError as e:
-            print(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Client error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
         except Exception as e:
-            print(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
+            logger.info(f"Unexpected error: {e}. Attempt {attempt} of {retries}. Retrying in {delay} seconds...")
             requestFailed = True
     
         if requestFailed:   
@@ -148,7 +151,7 @@ async def aggregate(horizon):
                             auctionID = auction.get('identification', 'N/D')
                             
                             if (auction.get('cancelled')):
-                                print(f"Cancelled auction skipped. ({auctionID})")
+                                logger.info(f"Cancelled auction skipped. ({auctionID})")
                             else:
 
                                 # Extract the last 9 characters from auction ID
@@ -253,10 +256,10 @@ if __name__ == "__main__":
         jaoTestFileName = "jao_test.json"
         with open(jaoTestFileName, 'w') as file:
                 file.write(json.dumps(all_data))
-        print(f"Data successfully exported to {jaoTestFileName}")
+        logger.info(f"Data successfully exported to {jaoTestFileName}")
 
     else:
-        print("\nNo Data collected.")
+        logger.info("\nNo Data collected.")
 
 
     end = time.perf_counter()
@@ -277,6 +280,6 @@ if __name__ == "__main__":
 
     converted_size = convert_size(peak)
 
-    print(f"Finished in {end-start:.2f}sec.")
-    print(f"Peak memory usage: {converted_size}.")
+    logger.info(f"Finished in {end-start:.2f}sec.")
+    logger.info(f"Peak memory usage: {converted_size}.")
     

@@ -1,4 +1,6 @@
 import requests
+from logging_config import setup_logging
+logger = setup_logging()
 
 def getAreas():
     url = "https://api.seecao.com/api/config"
@@ -30,5 +32,5 @@ def getAreas():
         return response.text
     else:
         # Handle other status codes if needed
-        print(f"Unexpected status code: {response.status_code}")
+        logger.error(f"Unexpected status code: {response.status_code}")
         return None
