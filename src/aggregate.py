@@ -51,7 +51,7 @@ def main(start_date = datetime, end_date = datetime):
                 
                 logger.info(f"Was collection accessed before today? {collectionWasAccessedB4Today}")
                 logger.info(f"Last Access Date (Tirana TZ): {lastModifiedDate_local}")
-                logger.info(f"Time elapsed (s): ~{int(distanceFromAccessTime / 3600)}hrs")
+                logger.info(f"Time elapsed: ~{int(distanceFromAccessTime / 3600)}hrs")
                 
                 CONTINUE_AGGREGATION = collectionWasAccessedB4Today
                     
