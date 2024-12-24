@@ -1,9 +1,12 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
 import sys
 import asyncio
 import queue
 import logging
-import threading
-from fastapi import FastAPI, WebSocket, Request, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse
 from starlette.responses import StreamingResponse
 
@@ -40,10 +43,10 @@ html = """
 <html>
     <head>
         <title>Log Stream</title>
-        <p>Please don't reload.</p>
     </head>
     <body>
         <h1>Log Stream</h1>
+        <p>Please don't reload.</p>
         <pre id="log"></pre>
         <script>
             const eventSource = new EventSource("/sse/logs");
@@ -57,6 +60,8 @@ html = """
 """
 
 log_queue = asyncio.Queue()
+
+SECRET_PHRASE = os.environ.get("SECRET_PHRASE")
 
 async def generate_logs():
     """Generator for SSE log messages."""
@@ -72,23 +77,25 @@ async def sse_logs():
     """Endpoint for server-sent events to stream logs."""
     return StreamingResponse(generate_logs(), media_type="text/event-stream")
     
-@app.websocket("/ws/logs")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            message = await log_queue.get()
-            await websocket.send_text(message)
-    except Exception as e:
-        logger.error(f"Error in WebSocket connection: {e}")
-    finally:
-        await websocket.close()
 
 @app.get("/", response_class=HTMLResponse)
-async def get(background_tasks: BackgroundTasks):
+async def get():
     logger.info("GET request received at root endpoint.")
-    background_tasks.add_task(main)  # Call main in the background                    
     return HTMLResponse(html)
+
+@app.post("/run-main")
+async def run_main(request: Request, background_tasks: BackgroundTasks):
+    """Trigger the main function if the secret phrase is correct."""
+    body = await request.json()
+    secret = body.get("secret")
+
+    if secret != SECRET_PHRASE:
+        logger.warning("Invalid secret phrase provided.")
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid secret phrase")
+
+    logger.info("POST request received with valid secret phrase. Running main...")
+    background_tasks.add_task(main)
+    return {"message": "Main function started"}
 
 
 if __name__ == "__main__":
