@@ -46,7 +46,7 @@ html = """
     </head>
     <body>
         <h1>Log Stream</h1>
-        <p>Please don't reload.</p>
+        <p>Please don't reload during aggregation.</p>
         <pre id="log"></pre>
         <script>
             const eventSource = new EventSource("/sse/logs");
