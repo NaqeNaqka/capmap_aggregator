@@ -22,8 +22,14 @@ logger.setLevel(logging.INFO)
 is_main_running = False
 main_lock = threading.Lock()
 
-# December 1, 2019, 23:00:00 to January 1, 2025, 23:59:59 (defaults)
-def main(start_date = datetime(2019, 12, 1, 23, 0, 0), end_date = datetime(2025, 1, 1, 23, 59, 59)):
+def main(start_date = datetime, end_date = datetime):
+    if not start_date:
+        # December 1, 2019, 23:00:00
+        start_date = datetime(2019, 12, 1, 23, 0, 0)
+    if not end_date:
+         # January 1, 2025, 23:59:59
+        end_date = datetime(2025, 1, 1, 23, 59, 59)
+    
     global is_main_running
     with main_lock:  # Ensure thread-safety
         if is_main_running:
