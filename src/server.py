@@ -5,16 +5,13 @@ import logging
 import threading
 from fastapi import FastAPI, WebSocket, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse
+from starlette.responses import StreamingResponse
 
 from aggregate import main
 
 # Set up a global logger
 logger = logging.getLogger("my_fastapi_app")
 logger.setLevel(logging.INFO)
-
-# Global flag and lock to ensure thread-safety
-is_main_running = False
-main_lock = threading.Lock()
 
 # Create a console handler for logging
 console_handler = logging.StreamHandler(sys.stdout)
@@ -48,9 +45,9 @@ html = """
         <h1>Log Stream</h1>
         <pre id="log"></pre>
         <script>
+            const eventSource = new EventSource("/sse/logs");
             const logElement = document.getElementById("log");
-            const socket = new WebSocket("ws://localhost:8000/ws/logs");
-            socket.onmessage = function(event) {
+            eventSource.onmessage = function(event) {
                 logElement.textContent += event.data + "\\n";
             };
         </script>
@@ -60,19 +57,19 @@ html = """
 
 log_queue = asyncio.Queue()
 
-async def process_logs():
-    """Background task to move logs from thread-safe queue to asyncio queue."""
+async def generate_logs():
+    """Generator for SSE log messages."""
     while True:
         try:
             msg = log_thread_queue.get(block=True, timeout=1)  # Wait for logs
-            await log_queue.put(msg)
+            yield f"data: {msg}\n\n"
         except queue.Empty:
             await asyncio.sleep(0.1)
-
-@app.on_event("startup")
-async def startup_event():
-    """Start the background task to process logs on app startup."""
-    asyncio.create_task(process_logs())
+            
+@app.get("/sse/logs")
+async def sse_logs():
+    """Endpoint for server-sent events to stream logs."""
+    return StreamingResponse(generate_logs(), media_type="text/event-stream")
     
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
@@ -89,19 +86,7 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/", response_class=HTMLResponse)
 async def get(background_tasks: BackgroundTasks):
     logger.info("GET request received at root endpoint.")
-    global is_main_running
-    with main_lock:  # Ensure thread-safety
-        if is_main_running:
-            logger.info("Skipping main; already running.")
-            return
-        is_main_running = True
-    try:
-        logger.info("Running main...")
-        background_tasks.add_task(main)  # Call main in the background
-    finally:
-        with main_lock:
-            is_main_running = False
-                    
+    background_tasks.add_task(main)  # Call main in the background                    
     return HTMLResponse(html)
 
 
