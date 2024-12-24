@@ -83,19 +83,50 @@ async def get():
     logger.info("GET request received at root endpoint.")
     return HTMLResponse(html)
 
+from datetime import datetime
+
 @app.post("/run-main")
 async def run_main(request: Request, background_tasks: BackgroundTasks):
-    """Trigger the main function if the secret phrase is correct."""
+    """Trigger the main function if the secret phrase is correct and validate optional dates."""
     body = await request.json()
     secret = body.get("secret")
+    start_date = body.get("start_date")
+    end_date = body.get("end_date")
 
+    # Validate the secret phrase
     if secret != SECRET_PHRASE:
         logger.warning("Invalid secret phrase provided.")
         raise HTTPException(status_code=403, detail="Forbidden: Invalid secret phrase")
 
-    logger.info("POST request received with valid secret phrase. Running main...")
-    background_tasks.add_task(main)
-    return {"message": "Main function started"}
+    # Validate dates
+    if end_date and not start_date:
+        logger.warning("End date provided without a start date.")
+        raise HTTPException(status_code=400, detail="Bad Request: End date cannot be provided without a start date.")
+
+    def parse_date(date_str):
+        """Helper function to parse and validate a date string."""
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bad Request: Date '{date_str}' is not in the correct format (YYYY-MM-DD)."
+            )
+
+    parsed_start_date = parse_date(start_date) if start_date else None
+    parsed_end_date = parse_date(end_date) if end_date else None
+
+    # Further validation for dates
+    if parsed_start_date and parsed_end_date and parsed_start_date > parsed_end_date:
+        logger.warning("Start date is after the end date.")
+        raise HTTPException(status_code=400, detail="Bad Request: Start date cannot be after end date.")
+
+    logger.info("POST request received with valid parameters.")
+    logger.info(f"Start date: {parsed_start_date}, End date: {parsed_end_date}")
+
+    # Pass the parsed dates to the main function
+    background_tasks.add_task(main, parsed_start_date, parsed_end_date)
+    return {"message": "Main function started with dates", "start_date": start_date, "end_date": end_date}
 
 
 if __name__ == "__main__":

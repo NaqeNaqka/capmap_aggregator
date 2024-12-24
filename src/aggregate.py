@@ -22,8 +22,8 @@ logger.setLevel(logging.INFO)
 is_main_running = False
 main_lock = threading.Lock()
 
-
-def main():
+# December 1, 2019, 23:00:00 to January 1, 2025, 23:59:59 (defaults)
+def main(start_date = datetime(2019, 12, 1, 23, 0, 0), end_date = datetime(2025, 1, 1, 23, 59, 59)):
     global is_main_running
     with main_lock:  # Ensure thread-safety
         if is_main_running:
@@ -58,10 +58,6 @@ def main():
 
                 url = os.environ.get("SUPABASE_URL")
                 key = os.environ.get("SUPABASE_KEY")
-                
-                # Start date and end date
-                start_date = datetime(2019, 12, 1, 23, 0, 0)  # December 1, 2019, 23:00:00
-                end_date = datetime(2025, 1, 1, 23, 59, 59)  # January 1, 2025, 23:59:59
 
                 all_data = []
                 listLock = threading.Lock()
