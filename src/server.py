@@ -40,6 +40,7 @@ html = """
 <html>
     <head>
         <title>Log Stream</title>
+        <p>Please don't reload.</p>
     </head>
     <body>
         <h1>Log Stream</h1>
