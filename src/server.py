@@ -16,50 +16,68 @@ from aggregate import main
 logger = logging.getLogger("my_fastapi_app")
 logger.setLevel(logging.INFO)
 
-# Create a console handler for logging
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-logger.addHandler(console_handler)
-
-# Thread-safe queue for logs
-log_thread_queue = queue.Queue()
-
-loop = asyncio.new_event_loop()
-
-class QueueHandler(logging.Handler):
-    def emit(self, record):
-        msg = self.format(record)
-        log_thread_queue.put(msg)
-        
-# Add the QueueHandler to the logger
-queue_handler = QueueHandler()
-queue_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-logger.addHandler(queue_handler)
-
 app = FastAPI()
 
-html = """
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Log Stream</title>
-    </head>
-    <body>
-        <h1>Log Stream</h1>
-        <p>Please don't reload during aggregation.</p>
-        <pre id="log"></pre>
-        <script>
-            const eventSource = new EventSource("/sse/logs");
-            const logElement = document.getElementById("log");
-            eventSource.onmessage = function(event) {
-                logElement.textContent += event.data + "\\n";
-            };
-        </script>
-    </body>
-</html>
-"""
+LOG_STREAM = False      # Stream Logs over SSE (GET)
 
-log_queue = asyncio.Queue()
+if LOG_STREAM:
+    # Create a console handler for logging
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(console_handler)
+
+    # Thread-safe queue for logs
+    log_thread_queue = queue.Queue()
+
+    loop = asyncio.new_event_loop()
+
+    class QueueHandler(logging.Handler):
+        def emit(self, record):
+            msg = self.format(record)
+            log_thread_queue.put(msg)
+            
+    # Add the QueueHandler to the logger
+    queue_handler = QueueHandler()
+    queue_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(queue_handler)
+
+    log_queue = asyncio.Queue()
+    
+
+    html = """
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Log Stream</title>
+        </head>
+        <body>
+            <h1>Log Stream</h1>
+            <p>Please don't reload during aggregation.</p>
+            <pre id="log"></pre>
+            <script>
+                const eventSource = new EventSource("/sse/logs");
+                const logElement = document.getElementById("log");
+                eventSource.onmessage = function(event) {
+                    logElement.textContent += event.data + "\\n";
+                };
+            </script>
+        </body>
+    </html>
+    """
+else:
+    html = """
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Log Stream</title>
+        </head>
+        <body>
+            <h1>Log Stream is disabled</h1>
+            <p>Use POST to aggregate.</p>
+        </body>
+    </html>
+    """
+
 
 SECRET_PHRASE = os.environ.get("SECRET_PHRASE")
 
@@ -71,12 +89,13 @@ async def generate_logs():
             yield f"data: {msg}\n\n"
         except queue.Empty:
             await asyncio.sleep(0.1)
-            
-@app.get("/sse/logs")
-async def sse_logs():
-    """Endpoint for server-sent events to stream logs."""
-    return StreamingResponse(generate_logs(), media_type="text/event-stream")
-    
+
+if LOG_STREAM:
+    @app.get("/sse/logs")
+    async def sse_logs():
+        """Endpoint for server-sent events to stream logs."""
+        return StreamingResponse(generate_logs(), media_type="text/event-stream")
+        
 
 @app.get("/", response_class=HTMLResponse)
 async def get():
