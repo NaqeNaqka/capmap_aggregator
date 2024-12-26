@@ -109,7 +109,7 @@ async def fetch_auction(session, corridor, date_range, horizon, retries = 3, del
                         if '\\u0022No Data found\\u0022' in response_text:
                             logger.info("No Data found.")
                         else:
-                            logger.warn("Unhandled Bad Request: ", response_text)
+                            logger.warning("Unhandled Bad Request: ", response_text)
                             
                     return None
         except ServerDisconnectedError:
@@ -132,8 +132,6 @@ async def fetch_auction(session, corridor, date_range, horizon, retries = 3, del
 async def aggregate(horizon):
     async with ClientSession() as session:
         await getCorridors(session, horizon)
-    
-    async with ClientSession() as session:
         tasks = []
         for corridor in corridors:
             for date_range in date_ranges:
