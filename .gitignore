@@ -1,5 +1,6 @@
 .venv
 .env
 auctions.json
+aggregation_range.json
 __pycache__
 __init__.py

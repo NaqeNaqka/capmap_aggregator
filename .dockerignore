@@ -1,3 +1,4 @@
 .env
 .venv
 auctions.json
+aggregation_range.json
