@@ -43,15 +43,30 @@ def uploadToSupa():
     {"limit": 10, "offset": 0, "sortBy": {"column": "name", "order": "desc"}},
     )
 
+    auctionsFileName = "auctions.json"
     UPSERT = "false"
     if response:
-        logger.info("File already exists. It will be overwritten by the local version.")
-        UPSERT = "true"
+        for item in response:
+            if item["name"] == auctionsFileName:
+                logger.info(f"{auctionsFileName} already exists. It will be overwritten by the local version.")
+                UPSERT = "true"
 
         
-    auctionsFileName = "auctions.json"
     logger.info("Uploading auctions...")
     with open(auctionsFileName, 'rb') as f:
+        try:
+            response = supabase.storage.from_(BUCKET_NAME).upload(
+                file=f,
+                path=auctionsFileName,
+                file_options={"cache-control": "3600", "upsert": UPSERT},
+            )
+            logger.info(response)
+        except StorageException as e:
+            SIGN_OUT()
+            raise Exception(e)
+    
+    logger.info("Uploading date ranges...")
+    with open("aggregation_range.json", 'rb') as f:
         try:
             response = supabase.storage.from_(BUCKET_NAME).upload(
                 file=f,

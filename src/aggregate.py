@@ -92,6 +92,15 @@ def main(start_date = datetime, end_date = datetime):
                     with open(auctionsFileName, 'w') as file:
                             file.write(json.dumps(all_data))
                     logger.info(f"Data successfully exported to {auctionsFileName}")
+                    
+                    aggregation_range = {
+                        "start_date": start_date,
+                        "end_date": end_date
+                    }
+                    
+                    with open("aggregation_range.json", "w") as json_file:
+                        json.dump(aggregation_range, json_file, indent=4)
+                    
                     uploadToSupa() 
 
             end = time.perf_counter()
