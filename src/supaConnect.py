@@ -129,15 +129,14 @@ def checkRemoteFileDate():
         logger.info("No remote files were found.")
         return None
 
-    #TODO use updated_at, created_at
-    try:
-        for item in response:
-            if item["name"] == auctionsFileName:
+    for item in response:
+        if item["name"] == auctionsFileName:
+            try:
                 responseData = item["updated_at"]
-    except:
-        logger.info("No updated_at value was provided, using creation date...")
-        responseData = response[0]["created_at"]
-        
+            except:
+                logger.info("No updated_at value was found, using creation date...")
+                responseData = item["created_at"]
+                
     lastModifiedDate = datetime.strptime(responseData[:-1], "%Y-%m-%dT%H:%M:%S.%f")
     
     # Set the object's timezone to UTC
