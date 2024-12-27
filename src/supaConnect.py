@@ -72,7 +72,7 @@ def uploadToSupa():
         try:
             response = supabase.storage.from_(BUCKET_NAME).upload(
                 file=f,
-                path=auctionsFileName,
+                path="aggregation_range.json",
                 file_options={"cache-control": "3600", "upsert": UPSERT},
             )
             logger.info(response)
@@ -129,13 +129,14 @@ def checkRemoteFileDate():
         logger.info("No remote files were found.")
         return None
 
-    for item in response:
-        if item["name"] == auctionsFileName:
-            try:
+    #TODO use updated_at, created_at
+    try:
+        for item in response:
+            if item["name"] == auctionsFileName:
                 responseData = item["updated_at"]
-            except:
-                logger.info("No updated_at value was found, using creation date...")
-                responseData = item["created_at"]
+    except:
+        logger.info("No updated_at value was provided, using creation date...")
+        responseData = response[0]["created_at"]
         
     lastModifiedDate = datetime.strptime(responseData[:-1], "%Y-%m-%dT%H:%M:%S.%f")
     
