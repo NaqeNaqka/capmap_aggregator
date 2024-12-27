@@ -10,7 +10,7 @@ WORKDIR /app
 
 RUN python -m venv .venv
 
-RUN .venv\Scripts\activate
+RUN .venv/Scripts/activate
 
 RUN pip install -r requirements.txt
 
