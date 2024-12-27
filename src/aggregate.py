@@ -76,7 +76,7 @@ def main(start_date = datetime, end_date = datetime):
                         
                     data = collector(start_date, end_date, horizon)
                     with listLock:
-                        all_data.append(data)
+                        all_data.extend(data)
                     
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     # Caution: setting the horizon to Yearly will collect auctions based ONLY on the dates' years (JAO)
