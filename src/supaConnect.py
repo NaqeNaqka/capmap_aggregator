@@ -8,6 +8,8 @@ from storage3.utils import StorageException
 from logging_config import setup_logging
 logger = setup_logging()
 
+auctionsFileName = "auctions.json"
+
 def uploadToSupa():
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
@@ -127,12 +129,13 @@ def checkRemoteFileDate():
         logger.info("No remote files were found.")
         return None
 
-    #TODO use updated_at, created_at
-    try:
-        responseData = response[0]["updated_at"]
-    except:
-        logger.info("No updated_at value was provided, using creation date...")
-        responseData = response[0]["created_at"]
+    for item in response:
+        if item["name"] == auctionsFileName:
+            try:
+                responseData = item["updated_at"]
+            except:
+                logger.info("No updated_at value was found, using creation date...")
+                responseData = item["created_at"]
         
     lastModifiedDate = datetime.strptime(responseData[:-1], "%Y-%m-%dT%H:%M:%S.%f")
     
