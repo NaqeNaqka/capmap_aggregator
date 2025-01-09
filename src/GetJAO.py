@@ -163,10 +163,10 @@ async def aggregate(horizon):
                                 newAuction = {
                                     'Year': year,
                                     'Month': month,
+                                    'Border': auction.get('corridorCode', 'N/D'),
                                     'Market period start': auction.get('marketPeriodStart'),
                                     'Market period stop': auction.get('marketPeriodStop'),
                                     'AuctionId': auctionID,
-                                    'Border': auction.get('corridorCode', 'N/D'),
                                     'TimeTable': product.get('productHour', 'N/D'),
                                     'OfferedCapacity (MW)': result.get('offeredCapacity', "N/D"),
                                     'Return (MW)': product.get('resoldCapacity', "N/D"),

@@ -101,10 +101,10 @@ async def processAuctions(auctionsList, horizon):
                     processedAuction = {
                                 'Year': auction.get("year"),
                                 'Month': month,
+                                'Border': border,
                                 'Market period start': auction.get('deliveryPeriodStart'),
                                 'Market period stop': auction.get('deliveryPeriodEnd'),
                                 'AuctionId': currAuctionID,
-                                'Border': border,
                                 'TimeTable': auction.get('timetable', 'N/D'),
                                 'OfferedCapacity (MW)': auction.get('offered', "N/D"),
                                 'Return (MW)': auction.get('return', "N/D"),
